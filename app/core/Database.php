@@ -17,6 +17,23 @@ final class Database {
     }
 
     private static function dsn(): string {
+        // A single DB_URI (postgresql://user:pass@host:port/db) wins over the separate
+        // DB_HOST/DB_PORT/... variables — handy when pasting a Supabase "Direct" string.
+        // User/password stay OUT of the DSN (they reach PDO's constructor instead), so
+        // they never end up in logs or error output.
+        if ($uri = (string)Env::get('DB_URI', '')) {
+            $u = parse_url($uri) ?: throw new RuntimeException('DB_URI is not a valid URL.');
+            $db   = ltrim((string)($u['path'] ?? ''), '/');
+            $host = (string)($u['host'] ?? '');
+            $port = (string)($u['port'] ?? 5432);
+            if ($db === '' || $host === '' || empty($u['scheme']) || !str_starts_with((string)$u['scheme'], 'postgres')) {
+                throw new RuntimeException('DB_URI must be a postgres URL with host and database name.');
+            }
+            $ssl = str_contains(strtolower($host), 'pooler.supabase.com') ? 'require' : 'prefer';
+            // Supabase pooler URIs deliberately omit sslmode; plain URLs keep the caller's choice.
+            $ssl = (string)Env::get('DB_SSLMODE', $ssl);
+            return 'pgsql:host=' . $host . ';port=' . $port . ';dbname=' . $db . ';sslmode=' . $ssl;
+        }
         $host = (string)Env::get('DB_HOST', '127.0.0.1');
         $port = (string)Env::get('DB_PORT', '5432');
         // If a pasted host already carries a port, honor the trailing value instead of doubling it up.
@@ -25,9 +42,26 @@ final class Database {
              . ';sslmode=' . (string)Env::get('DB_SSLMODE', 'require');
     }
 
+    /** User/password: explicit DB_USER/DB_PASS, else the credentials embedded in DB_URI. */
+    private static function auth(): array {
+        $user = (string)Env::get('DB_USER', '');
+        $pass = (string)Env::get('DB_PASS', '');
+        if ($uri = (string)Env::get('DB_URI', '')) {
+            $u = parse_url($uri);
+            if ($u) {
+                // With DB_URI set, the URI's own credentials win (a stale/supabase .env DB_USER
+                // must never override the exact server you're pointing at).
+                $user = rawurldecode((string)($u['user'] ?? $user));
+                $pass = rawurldecode((string)($u['pass'] ?? $pass));
+            }
+        }
+        return [$user, $pass];
+    }
+
     public static function pdo(): PDO {
         if (self::$pdo === null) {
-            self::$pdo = new PDO(self::dsn(), (string)Env::get('DB_USER', ''), (string)Env::get('DB_PASS', ''), [
+            [$user, $pass] = self::auth();
+            self::$pdo = new PDO(self::dsn(), $user, $pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 // Client-side prepares: the transaction-mode pooler (port 6543) does not support
