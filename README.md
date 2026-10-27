@@ -1,5 +1,11 @@
 # Klyval — Phases 1–2 (Foundation + Design System)
 
+> **Target platform changed after this README was written.** The site now runs on
+> **Vercel (Container Runtime, FrankenPHP, PHP 8.3)** with **Supabase
+> (PostgreSQL + Storage)**. The date/local-pattern guides below still describe
+> the legacy InfinityFree setup and are kept for the cutover rollback plan.
+> For the new deployment see **`docs/DEPLOY.md`**.
+
 1. Point the web root at `public/`. Needs PHP 8.1+ with `pdo_mysql` and `mbstring`, MySQL 5.7+/MariaDB 10.3+, Apache `mod_rewrite` (Nginx: route everything to `public/index.php`).
 2. `cp .env.example .env`, fill in DB values and `APP_URL`.
 3. `php bin/migrate.php` (safe to re-run; applies only pending migrations, never drops anything).
