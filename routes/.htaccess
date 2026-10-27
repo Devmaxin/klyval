@@ -1,0 +1,5 @@
+# Not web-accessible. The root .htaccess already blocks this folder; this is a second lock.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule .* - [F,L]
+</IfModule>

@@ -1,0 +1,56 @@
+/* BUILD → CREATE → LAUNCH. Slow → precise → fast → settle. Stage is set on [data-stage] by intro.js. */
+.intro{display:none}
+html.intro-active{overflow:hidden}
+html.intro-active .intro{position:fixed;inset:0;z-index:90;display:grid;grid-template-rows:auto 1fr;overflow:hidden;
+  background:var(--deep);color:var(--soft);clip-path:inset(0);transition:background 1.3s linear,clip-path .75s var(--ease-snap)}
+html.intro-active .intro[data-stage=launch]{background:var(--electric);transition-duration:.9s,.75s}
+html.intro-active .intro[data-stage=out]{background:var(--electric);clip-path:inset(0 0 100% 0)}
+
+.intro__brand{position:absolute;left:var(--margin);top:calc(var(--header-h)/2 - .75rem);z-index:2}
+.intro__stages{position:absolute;right:var(--margin);top:calc(var(--header-h)/2 - .6rem);z-index:2;display:flex;gap:1.25rem;list-style:none;margin:0;padding:0;
+  font:600 .75rem var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:rgba(248,250,252,.4)}
+.intro[data-stage=build] .intro__stages li:nth-child(1),.intro[data-stage=create] .intro__stages li:nth-child(2),
+.intro[data-stage=launch] .intro__stages li:nth-child(3){color:var(--soft)}
+
+/* Structure: the grid draws itself, then loosens, then converges. */
+.intro__grid{--n:4;position:absolute;inset:0;display:grid;grid-template-columns:repeat(var(--n),1fr);padding-inline:var(--margin);max-width:var(--max);margin-inline:auto}
+@media(min-width:900px){.intro__grid{--n:12}}
+@media(max-width:899px){.intro__grid i:nth-child(n+5){display:none}}
+.intro__grid i{border-left:1px solid rgba(255,255,255,.16);transform:scaleY(0);transform-origin:top;
+  transition:transform .9s var(--ease-precise) calc(var(--i)*45ms),border-color .6s}
+.intro:not([data-stage=pre]) .intro__grid i{transform:scaleY(1)}
+.intro__grid i:nth-child(3n+1){--dy:-10%}.intro__grid i:nth-child(3n+2){--dy:7%}.intro__grid i:nth-child(3n){--dy:-3%}
+.intro[data-stage=create] .intro__grid i{transform:translateY(var(--dy)) scaleY(1.2);transition:transform 1s var(--ease-precise) calc(var(--i)*30ms)}
+.intro[data-stage=create] .intro__grid i:nth-child(4n){border-left:3px solid var(--bright)}
+.intro[data-stage=launch] .intro__grid i,.intro[data-stage=out] .intro__grid i{
+  transform:translateX(calc(((var(--n) - 1)/2 - var(--i))*100%)) scaleY(1);border-color:rgba(255,255,255,.55);
+  transition:transform .7s cubic-bezier(.7,0,.9,.4) calc(var(--i)*12ms),border-color .4s}
+
+/* Expression: a block wipes in behind the type, then is thrown out of frame. */
+.intro__block{--word-pad:clamp(3.5rem,8vw,6rem);position:absolute;right:var(--margin);bottom:calc(var(--word-pad) + 12vw);width:70%;height:34%;background:var(--electric);clip-path:inset(0 100% 0 0);transition:clip-path .9s var(--ease-precise) .15s}
+@media(min-width:900px){.intro__block{bottom:calc(var(--word-pad) + 6.5vw);width:52%;height:32%}}
+.intro[data-stage=create] .intro__block{clip-path:inset(0)}
+.intro[data-stage=launch] .intro__block,.intro[data-stage=out] .intro__block{clip-path:inset(0);background:var(--bright);transform:translateX(130%);transition:transform .6s cubic-bezier(.7,0,.9,.4),background .3s}
+
+/* Momentum: three fast rules sweep through. */
+.intro__streak{position:absolute;left:0;top:calc(28% + var(--k)*18%);width:45%;height:1px;background:rgba(255,255,255,.7);transform:translateX(-110%)}
+.intro[data-stage=launch] .intro__streak{transform:translateX(260%);transition:transform .8s cubic-bezier(.6,0,.9,.4) calc(var(--k)*.1s)}
+
+/* Words */
+.intro__words{position:relative;z-index:1;align-self:end;display:grid;padding:0 var(--margin) clamp(3.5rem,8vw,6rem);grid-row:2}
+.intro__word{grid-area:1/1;margin:0;overflow:hidden;padding-bottom:.08em;font:700 clamp(3.5rem,15.5vw,14rem)/.92 var(--font-display);letter-spacing:-.045em}
+.intro__word>span{display:block;transform:translateY(105%)}
+@media(min-width:900px){.br-m{display:none}.intro__word{font-size:clamp(5rem,12.5vw,13rem);white-space:nowrap}}
+.intro__word.is-active>span{transform:none;transition:transform .8s var(--ease-precise) .35s}
+.intro__word.is-past>span{transform:translateY(-105%);transition:transform .4s var(--ease-snap)}
+.intro__word[data-w=create]>span{transform:none;clip-path:inset(0 100% 0 0)}
+.intro__word[data-w=create].is-active>span{clip-path:inset(0);transition:clip-path .8s var(--ease-precise) .3s}
+.intro__word[data-w=create].is-past>span{transform:translateY(-105%);clip-path:inset(0)}
+.intro__word[data-w=launch]>span{transform:translateY(105%) skewX(-10deg)}
+.intro__word[data-w=launch].is-active>span{transform:none;transition:transform .45s cubic-bezier(.2,.9,.1,1) .3s}
+
+.intro__skip{position:absolute;right:var(--margin);bottom:1.1rem;z-index:3;background:none;border:0;color:inherit;font:600 .75rem var(--font-body);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:.5rem 0;opacity:.7}
+.intro__skip:hover{opacity:1}
+.intro__progress{position:absolute;left:var(--margin);right:var(--margin);bottom:0;height:2px;background:rgba(255,255,255,.18)}
+.intro__progress i{display:block;height:100%;background:var(--soft);transform:scaleX(0);transform-origin:left}
+.intro.is-running .intro__progress i{transform:scaleX(1);transition:transform var(--total) linear}

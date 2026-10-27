@@ -1,0 +1,22 @@
+# Uploads are static images only. Nothing in this folder may ever execute.
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .pl .py .cgi .sh
+RemoveType .php .phtml .phar
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# Anything script-like is refused outright, then only image names are served at all.
+RewriteRule \.(php\d?|phtml|phar|pl|py|cgi|sh|htaccess)$ - [F,NC,L]
+RewriteRule !\.(jpe?g|png|webp)$ - [F,NC,L]
+</IfModule>
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox"
+</IfModule>

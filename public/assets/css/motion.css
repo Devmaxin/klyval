@@ -1,0 +1,18 @@
+/* Slow → precise → fast → settle. Opt-in via [data-reveal]; content is visible without JS. */
+.js [data-reveal] .mask{display:block;overflow:hidden;padding-bottom:.08em;margin-bottom:-.08em}
+.js [data-reveal] .mask>span{display:block;transform:translateY(105%);transition:transform var(--t-slow) var(--ease-precise)}
+.js [data-reveal] .mask:nth-child(2)>span{transition-delay:.08s}
+.js [data-reveal] .mask:nth-child(3)>span{transition-delay:.16s}
+.js [data-reveal].is-in .mask>span{transform:none}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .js [data-reveal] .mask>span{transform:none;transition:none}
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+
+/* Page transition: current page is covered by Klyval blue (wipe up), the next page reveals it away. Fast, never blocks input. */
+body::after{content:"";position:fixed;inset:0;z-index:85;background:var(--electric);pointer-events:none;visibility:hidden;clip-path:inset(100% 0 0 0)}
+html.pt-out body::after{visibility:visible;clip-path:inset(0);transition:clip-path .34s var(--ease-snap)}
+html.pt-in body::after{visibility:visible;clip-path:inset(0)}
+html.pt-reveal body::after{visibility:visible;clip-path:inset(0 0 100% 0);transition:clip-path .5s var(--ease-snap)}
+@media(prefers-reduced-motion:reduce){body::after{display:none!important}}

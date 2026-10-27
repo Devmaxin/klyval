@@ -1,0 +1,8 @@
+.env
+!.env.example
+storage/logs/*
+storage/uploads/*
+!storage/**/.gitkeep
+/public/uploads/*
+!/public/uploads/.htaccess
+!/public/uploads/index.html

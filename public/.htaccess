@@ -1,0 +1,15 @@
+# Front controller for hosts whose web root is this folder. No Options directive (some shared hosts reject it).
+# Directories also go to the application, so a folder URL can never list its contents.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# If this folder is reached as /public/... (project folder used as the web root), refuse PHP and dotfiles there.
+# The real entry point in that layout is the root index.php. Never matches when public/ itself is the web root.
+RewriteCond %{REQUEST_URI} ^/public/
+RewriteRule \.(php\d?|phtml|phar|pl|py|cgi)$ - [F,NC,L]
+RewriteCond %{REQUEST_URI} ^/public/
+RewriteRule (^|/)\.(?!well-known(/|$)) - [F,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [L]
+</IfModule>

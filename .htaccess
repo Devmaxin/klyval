@@ -1,0 +1,32 @@
+# Klyval on Apache shared hosting where the web root IS the project folder (InfinityFree htdocs).
+# public/index.php stays the real front controller; the root index.php only requires it.
+# Only mod_rewrite is used (no Options / Require / Order), so it works under restrictive AllowOverride settings.
+# Deploy at the DOMAIN ROOT (not in a sub-folder).
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+
+# A. Internal folders are never web-accessible, in any letter case.
+RewriteRule ^(app|bin|config|database|deploy|docs|qa|routes|storage|views)(/|$) - [F,NC,L]
+
+# B. Dotfiles (.env, .env.example, .git, .gitignore, .htaccess ...) are never served. /.well-known stays open for SSL validation.
+RewriteRule (^|/)\.(?!well-known(/|$)) - [F,L]
+
+# C. Source, config, logs, backups and docs are never served.
+RewriteRule \.(sql|md|log|ini|sh|bak|dist|example|lock|yml|yaml|inc|tpl)$ - [F,NC,L]
+
+# D. Only the entry point (and the temporary setup.php) may run as PHP. public/index.php and anything under uploads cannot be requested directly.
+RewriteCond %{REQUEST_URI} !^/(index|setup)\.php$
+RewriteRule \.(php\d?|phtml|phar|pl|py|cgi)$ - [F,NC,L]
+
+# E. Static files that live in public/ are served from there (only if the file really exists).
+RewriteCond %{DOCUMENT_ROOT}/public/$0 -f
+RewriteRule ^(assets|uploads)/.+$ public/$0 [L]
+RewriteCond %{DOCUMENT_ROOT}/public/$0 -f
+RewriteRule ^favicon\.svg$ public/favicon.svg [L]
+
+# F. Everything else (pages, /admin, /sitemap.xml, /robots.txt, 301 slug redirects, directories, unknown URLs) goes to the application.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [L]
+</IfModule>

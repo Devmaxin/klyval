@@ -1,0 +1,42 @@
+# Klyval on Nginx + PHP-FPM. Adjust server_name, root and the php-fpm socket.
+# The rule that matters most is the /uploads/ block: it must be a ^~ prefix location so no regex or PHP location can win.
+server {
+    listen 80;
+    server_name example.com;
+    root /var/www/klyval/public;          # the web root is public/ only. app/, config, .env etc. are NOT reachable.
+    index index.php;
+    client_max_body_size 8m;              # keep >= PHP upload_max_filesize / post_max_size
+
+    location ~ /\.(?!well-known) { deny all; }
+
+    # ---- Uploads: static images only. No PHP, ever. ----
+    location ^~ /uploads/ {
+        types { image/jpeg jpg; image/png png; image/webp webp; }
+        default_type application/octet-stream;
+        location ~* \.(php\d?|phtml|phar|pl|py|cgi|sh)$ { return 403; }
+        try_files $uri =404;               # serve an existing file or 404. Never hand anything to FastCGI.
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox" always;
+        expires 30d;
+        access_log off;
+    }
+
+    # ---- Versioned static assets (URLs carry ?v=filemtime) ----
+    location ^~ /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    location / { try_files $uri /index.php?$query_string; }
+
+    location = /index.php {
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+    }
+
+    # No other .php file is an entry point.
+    location ~ \.php$ { return 404; }
+}
