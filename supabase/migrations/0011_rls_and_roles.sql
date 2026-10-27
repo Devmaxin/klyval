@@ -11,6 +11,16 @@ grant select, insert, update, delete on all tables    in schema public to klyval
 grant usage, select                  on all sequences in schema public to klyval_app;
 
 -- Lock the public Data API roles out completely (defense in depth on top of RLS).
+-- The two Supabase-managed roles are created only where they don't already exist (local
+-- Postgres has neither), so this migration applies cleanly in both environments.
+do $$ begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    create role anon nologin;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+    create role authenticated nologin;
+  end if;
+end $$;
 revoke all on all tables    in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
 revoke all on all functions in schema public from anon, authenticated;
