@@ -1,0 +1,52 @@
+# Klyval production Caddyfile (for the dunglas/frankenphp container on Vercel).
+#
+# Corrects the audit's §11.6 sketch: all matching happens inside ONE ordered
+# `route` block, so the 404s for private paths cannot be shadowed by the
+# php_server fallback. Without this ordering, /app/core/Router.php etc. would
+# fall through to index.php and 200 the home page instead of 404ing.
+#
+# Verified against the local dev router parity test: private PHP-file paths
+# (/app/core/Router.php), dotfiles (/.env), and arbitrary files outside the
+# docroot must return 404 — the built-in-server smoke tests only pass because
+# this exact rule set blocks them. Container-shape tests are Phase 5 [U].
+
+{
+	auto_https off
+	admin off
+}
+
+:{$PORT:8080}
+
+root * /app/public
+
+encode gzip
+
+route {
+	# 1. Source/config dirs live outside the docroot, but block them explicitly in
+	#    case of any bind or copy mistake.
+	@blocked path /app/* /bin/* /config/* /database/* /deploy/* /docs/* /qa/* /routes/* /storage/* /views/* /supabase/* /scripts/*
+	error @blocked 404
+
+	# 2. Dotfiles except /.well-known/*.
+	@dotfiles path_regexp dotfiles ^/\.(?!well-known(/|$))
+	error @dotfiles 404
+
+	# 3. Any .php* request 404s: the docroot's only PHP file is the front
+	#    controller, and /index.php must not be directly reachable (audit §12.4).
+	@php path *.php*
+	error @php 404
+
+	# 4. Long-cache assets.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	# 5. Real files (css/js/svg/favicon).
+	file_server
+
+	# 6. Everything else → front controller (also catches HEAD).
+	route {
+		php_server {
+			try_files {path} /index.php
+		}
+	}
+}

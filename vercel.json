@@ -1,0 +1,9 @@
+{
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"services": {
+		"web": {
+			"runtime": "container-v1",
+			"dockerfile": "Dockerfile.vercel"
+		}
+	}
+}

@@ -1,0 +1,26 @@
+# Klyval container for the Vercel (Container Runtime, Beta).
+# Base: FrankenPHP 1.x / PHP 8.3 bookworm — bundles Caddy + PHP + common
+# extensions (gd, mbstring, exif, curl, fileinfo are preloaded).
+# NOTE: tag and runtime attributes were recorded from Vercel docs on
+# 2026-10-26 and remain [U] until re-verified against current docs +
+# a real preview deploy (see docs/MIGRATION_VERIFICATION.md §2.6).
+FROM dunglas/frankenphp:1-php8.3-bookworm
+
+# Application code. `.dockerignore` keeps secrets (.env), local uploads and
+# the git history out of the image.
+COPY . /app
+
+# Ensure writable dirs the app may use (php session files are served by the
+# DB-backed handler; storage/tmp is just a safety net) and give Caddy its dirs.
+RUN mkdir -p /data/caddy /config/caddy /app/storage/tmp \
+	&& chown -R www-data:www-data /app/storage
+
+# Serve on the Vercel-assigned port.
+ENV SERVER_NAME=:${PORT:-8080}
+
+# Production settings: no display_errors; APP_* come from Vercel env vars.
+ENV APP_ENV=production \
+	APP_DEBUG=0 \
+	APP_TZ=UTC
+
+EXPOSE 8080

@@ -1,0 +1,19 @@
+# Never baked into the image.
+.env
+.git
+.gitignore
+*.md
+!README.md
+
+# Local dev/QA artifacts.
+qa/
+deploy/infinityfree-setup.php
+deploy/.htaccess
+deploy/nginx.conf.example
+
+# Uploaded media: served from Supabase Storage in production, not the container.
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Local tooling leftovers.
+*.log
