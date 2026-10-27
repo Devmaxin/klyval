@@ -6,3 +6,8 @@ storage/uploads/*
 /public/uploads/*
 !/public/uploads/.htaccess
 !/public/uploads/index.html
+
+# Owner-supplied one-offs: not part of the codebase.
+legacy-dump.sql
+/public/uploads.zip
+/qa/uploads-extracted/
