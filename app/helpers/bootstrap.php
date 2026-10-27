@@ -15,7 +15,7 @@ Env::load(ROOT . '/.env');
 date_default_timezone_set(Env::get('APP_TZ', 'UTC') ?: 'UTC');
 
 if (Env::get('APP_DEBUG') === '1') { ini_set('display_errors', '1'); error_reporting(E_ALL); }
-else { ini_set('display_errors', '0'); ini_set('log_errors', '1'); ini_set('error_log', ROOT . '/storage/logs/php.log'); }
+else { ini_set('display_errors', '0'); ini_set('log_errors', '1'); ini_set('error_log', 'php://stderr'); }
 
 set_exception_handler(function (Throwable $e): void {
     error_log((string)$e);

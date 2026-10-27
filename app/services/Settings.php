@@ -27,7 +27,7 @@ final class Settings {
     public static function save(string $table, array $allowed, array $kv): void {
         foreach ($kv as $k => $v) {
             if (!in_array($k, $allowed, true)) continue;
-            Database::query("INSERT INTO $table (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", [$k, (string)$v]);
+            Database::query("INSERT INTO $table (setting_key, setting_value) VALUES (?, ?) ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value", [$k, (string)$v]);
         }
         self::$site = self::$home = null;
     }
@@ -45,7 +45,7 @@ final class Settings {
     public static function setMedia(string $slot, ?int $mediaId): void {
         if (!in_array($slot, ['logo', 'og_image', 'favicon'], true)) return;
         self::$mediaCache = [];
-        Database::query('INSERT INTO site_media (slot, media_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE media_id = VALUES(media_id)', [$slot, $mediaId]);
+        Database::query('INSERT INTO site_media (slot, media_id) VALUES (?, ?) ON CONFLICT (slot) DO UPDATE SET media_id = EXCLUDED.media_id', [$slot, $mediaId]);
     }
     public static function socials(): array {
         try { return Database::query('SELECT platform, url FROM social_links WHERE is_active = 1 ORDER BY display_order, id')->fetchAll(); }

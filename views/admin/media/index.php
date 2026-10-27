@@ -10,7 +10,7 @@
 <ul class="media-grid">
   <?php foreach ($items as $m): ?>
   <li class="media-card">
-    <img src="/uploads/<?= e(rawurlencode($m['filename'])) ?>" alt="<?= e((string)$m['alt_text']) ?>" loading="lazy" width="<?= (int)$m['width'] ?>" height="<?= (int)$m['height'] ?>">
+    <img src="<?= e(media_file_url($m['filename'])) ?>" alt="<?= e((string)$m['alt_text']) ?>" loading="lazy" width="<?= (int)$m['width'] ?>" height="<?= (int)$m['height'] ?>">
     <p class="hint"><?= (int)$m['width'] ?>×<?= (int)$m['height'] ?> · <?= round($m['bytes'] / 1024) ?> KB<?= $m['original_name'] ? ' · ' . e($m['original_name']) : '' ?></p>
     <form method="post" action="/admin/media/<?= (int)$m['id'] ?>/alt"><?= csrf_field() ?>
       <label class="sr-only" for="alt-<?= (int)$m['id'] ?>">Description</label>

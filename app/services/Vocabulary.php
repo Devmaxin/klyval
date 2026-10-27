@@ -17,8 +17,7 @@ final class Vocabulary {
             if ($row) { $ids[] = (int)$row['id']; continue; }
             $slug = $base = Slug::make($name); $n = 2;
             while (Database::query("SELECT 1 FROM $table WHERE slug = ?", [$slug])->fetch()) $slug = substr($base, 0, 70) . '-' . $n++;
-            Database::query("INSERT INTO $table (name, slug) VALUES (?, ?)", [$name, $slug]);
-            $ids[] = (int)Database::pdo()->lastInsertId();
+            $ids[] = Database::insert("INSERT INTO $table (name, slug) VALUES (?, ?)", [$name, $slug]);
         }
         return array_values(array_unique($ids));
     }

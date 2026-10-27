@@ -30,7 +30,7 @@ function fmedia(string $name, string $label, array $media, ?int $current, array 
        . '<label class="media-pick__none"><input type="radio" name="' . e($name) . '" value=""' . (!$current ? ' checked' : '') . '><span>None</span></label>';
     foreach ($media as $m) {
         $h .= '<label><input type="radio" name="' . e($name) . '" value="' . (int)$m['id'] . '"' . ((int)$m['id'] === (int)$current ? ' checked' : '') . '>'
-            . '<img src="/uploads/' . e(rawurlencode($m['filename'])) . '" alt="' . e((string)$m['alt_text']) . '" loading="lazy" width="96" height="96"></label>';
+            . '<img src="' . e(media_file_url($m['filename'])) . '" alt="' . e((string)$m['alt_text']) . '" loading="lazy" width="96" height="96"></label>';
     }
     if (!$media) $h .= '<p class="hint">No images yet. Upload some in Media first.</p>';
     return $h . '</div>' . (isset($err[$name]) ? '<span class="field__error">' . e($err[$name]) . '</span>' : '') . '</fieldset>';

@@ -2,11 +2,36 @@
 declare(strict_types=1);
 
 function e(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
+/** HTTPS behind the platform's TLS-terminating proxy (the container itself sees plain HTTP). */
+function is_https(): bool {
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+}
 /** Absolute URL. Uses APP_URL; if unset falls back to the server's own configured name (never the client-supplied Host header). */
 function url(string $path = '/'): string {
+    if (preg_match('#^https?://#i', $path)) return $path;   // absolute URLs (e.g. Storage media) pass through
     $base = rtrim((string)Env::get('APP_URL', ''), '/');
-    if ($base === '' && !empty($_SERVER['SERVER_NAME'])) $base = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://') . $_SERVER['SERVER_NAME'];
+    if ($base === '' && !empty($_SERVER['SERVER_NAME'])) $base = (is_https() ? 'https://' : 'http://') . $_SERVER['SERVER_NAME'];
     return $base . '/' . ltrim($path, '/');
+}
+/** Public URL origin prefix for stored media, no trailing slash. */
+function media_base(): string {
+    $b = (string)Env::get('MEDIA_BASE_URL', '');
+    if ($b !== '') return rtrim($b, '/');
+    $s = rtrim((string)Env::get('SUPABASE_URL', ''), '/');
+    return $s !== '' ? $s . '/storage/v1/object/public/' . (Env::get('MEDIA_BUCKET') ?: 'media') : '';
+}
+/** Origin (scheme://host[:port]) of the public media base, for the CSP img-src. */
+function media_origin(): string {
+    $p = parse_url(media_base());
+    if (empty($p['scheme']) || empty($p['host'])) return '';
+    return $p['scheme'] . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '');
+}
+/** Upload size limit in whole MB, shown to admins (the platform request-body cap is smaller than the app's). */
+function media_max_mb(): int { return (int)(MediaService::MAX_BYTES / 1048576); }
+/** Public URL for one stored media object, preserving the original filename. */
+function media_file_url(string $filename): string {
+    return media_base() . '/' . rawurlencode($filename);
 }
 /** JSON-LD block. Not executable script, so it is unaffected by the CSP. Flags prevent breaking out of the tag. */
 function json_ld(array $data): string {

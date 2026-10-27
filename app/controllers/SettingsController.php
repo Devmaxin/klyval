@@ -40,7 +40,7 @@ final class SettingsController extends AdminBase {
                 Settings::saveSite($d);
                 foreach (['logo', 'og_image', 'favicon'] as $slot) Settings::setMedia($slot, $this->mediaId("media_$slot"));
                 $keep = array_keys($socials); $order = 0;
-                foreach ($socials as $s) Database::query('INSERT INTO social_links (platform, url, display_order, is_active) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE url = VALUES(url), display_order = VALUES(display_order), is_active = VALUES(is_active)', [$s['platform'], $s['url'], $order++, $s['is_active']]);
+                foreach ($socials as $s) Database::query('INSERT INTO social_links (platform, url, display_order, is_active) VALUES (?,?,?,?) ON CONFLICT (platform) DO UPDATE SET url = EXCLUDED.url, display_order = EXCLUDED.display_order, is_active = EXCLUDED.is_active', [$s['platform'], $s['url'], $order++, $s['is_active']]);
                 if ($keep) Database::query('DELETE FROM social_links WHERE platform NOT IN (' . implode(',', array_fill(0, count($keep), '?')) . ')', $keep);
                 else Database::query('DELETE FROM social_links');
             });

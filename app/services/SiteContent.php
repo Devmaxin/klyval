@@ -1,7 +1,7 @@
 <?php
 /** Public read side. Returns plain arrays shaped for the views. Only published / active records ever leave this class. */
 final class SiteContent {
-    private static function img(?string $f): ?string { return $f ? '/uploads/' . rawurlencode($f) : null; }
+    private static function img(?string $f): ?string { return $f ? media_file_url($f) : null; }
     private static function safe(callable $fn, mixed $fallback): mixed {
         try { return $fn(); } catch (Throwable $e) { error_log('SiteContent: ' . $e->getMessage()); return $fallback; }
     }

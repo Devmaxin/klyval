@@ -1,31 +1,31 @@
 <?php
-/** Image-only media library. Everything uploaded is decoded and re-encoded, so metadata and any non-image payload are discarded. */
+/** Image-only media library. Everything uploaded is decoded and re-encoded, so metadata and any non-image payload are discarded.
+ *  Files live in Supabase Storage (public read bucket); every original filename is preserved as the object key. */
 final class MediaService {
-    public const MAX_BYTES = 5 * 1024 * 1024;   // upload size
+    public const MAX_BYTES = 4 * 1024 * 1024;   // upload size — must stay below Vercel's 4.5 MB request-body cap
     public const MAX_SIDE = 6000;               // reject larger source images
     public const MAX_PIXELS = 24000000;         // decompression-bomb guard
     public const MIN_SIDE = 16;
     public const OUT_SIDE = 2400;               // stored images are scaled down to this longest side
     private const TYPES = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
 
-    public static function dir(): string { return ROOT . '/public/uploads'; }
-    public static function url(?array $m): string { return $m ? '/uploads/' . rawurlencode($m['filename']) : ''; }
+    public static function url(?array $m): string { return $m ? media_file_url((string)$m['filename']) : ''; }
     private static function validName(string $f): bool { return (bool)preg_match('/^[a-f0-9]{32}\.(jpg|png|webp)$/', $f); }
 
     /** Entry point for a real HTTP upload ($_FILES entry). @return array{id?:int,error?:string} */
     public static function upload(array $file, string $alt, ?int $userId): array {
         if (!isset($file['error']) || is_array($file['error'])) return ['error' => 'Upload failed.'];
         if ($file['error'] === UPLOAD_ERR_NO_FILE) return ['error' => 'Choose an image to upload.'];
-        if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) return ['error' => 'That file is too large (max 5 MB).'];
+        if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) return ['error' => 'That file is too large (max ' . media_max_mb() . ' MB).'];
         if ($file['error'] !== UPLOAD_ERR_OK) return ['error' => 'Upload failed. Please try again.'];
         $tmp = (string)($file['tmp_name'] ?? '');
         if (!is_uploaded_file($tmp)) return ['error' => 'Upload failed.'];
         return self::process($tmp, (string)($file['name'] ?? ''), $alt, $userId);
     }
 
-    /** Validate, decode, re-encode and store a file on disk. Separate from upload() so qa/upload-test.php can exercise it. */
+    /** Validate, decode, re-encode and store via the Storage API. Separate from upload() so tests can exercise it. */
     public static function process(string $tmp, string $origName, string $alt, ?int $userId): array {
-        if (!is_file($tmp) || (int)filesize($tmp) > self::MAX_BYTES) return ['error' => 'That file is too large (max 5 MB).'];
+        if (!is_file($tmp) || (int)filesize($tmp) > self::MAX_BYTES) return ['error' => 'That file is too large (max ' . media_max_mb() . ' MB).'];
         $mime = (new finfo(FILEINFO_MIME_TYPE))->file($tmp);          // content, not the extension or the browser's claim
         if (!isset(self::TYPES[$mime])) return ['error' => 'Only JPEG, PNG or WebP images are allowed.'];
         $info = @getimagesize($tmp);
@@ -54,31 +54,75 @@ final class MediaService {
         }
         imagesavealpha($img, true);
 
-        if (!is_dir(self::dir()) && !@mkdir(self::dir(), 0755, true)) { imagedestroy($img); return ['error' => 'The upload folder is not writable.']; }
-        $name = bin2hex(random_bytes(16)) . '.' . self::TYPES[$mime];   // server-generated; the uploaded name is never used on disk
-        $path = self::dir() . '/' . $name;
-        $ok = match ($mime) { 'image/jpeg' => imagejpeg($img, $path, 85), 'image/png' => imagepng($img, $path, 6), default => imagewebp($img, $path, 82) };
+        // Re-encode in memory (no filesystem writes).
+        ob_start();
+        match ($mime) { 'image/jpeg' => imagejpeg($img, null, 85), 'image/png' => imagepng($img, null, 6), default => imagewebp($img, null, 82) };
+        $bytes = (string)ob_get_clean();
         imagedestroy($img);
-        if (!$ok || !is_file($path)) return ['error' => 'The image could not be saved.'];
-        @chmod($path, 0644);
+        if ($bytes === '' || strlen($bytes) > self::MAX_BYTES) return ['error' => 'The image could not be saved.'];
+
+        $name = bin2hex(random_bytes(16)) . '.' . self::TYPES[$mime];   // server-generated; the uploaded name is never used as a key
+        if (!self::put($name, $bytes, $mime)) return ['error' => 'The image could not be saved.'];
 
         $orig = mb_substr(trim(preg_replace('/[\x00-\x1F\x7F\/\\\\]/u', '', basename($origName)) ?? ''), 0, 255);
         try {
-            Database::query('INSERT INTO media (filename, original_name, mime, width, height, bytes, alt_text, uploaded_by) VALUES (?,?,?,?,?,?,?,?)',
-                [$name, $orig ?: null, $mime, $w, $h, (int)filesize($path), $alt !== '' ? mb_substr($alt, 0, 250) : null, $userId]);
-        } catch (Throwable $e) { @unlink($path); error_log('media insert failed: ' . $e->getMessage()); return ['error' => 'The image could not be saved.']; }
-        return ['id' => (int)Database::pdo()->lastInsertId()];
+            $id = Database::insert('INSERT INTO media (filename, original_name, mime, width, height, bytes, alt_text, uploaded_by) VALUES (?,?,?,?,?,?,?,?)',
+                [$name, $orig ?: null, $mime, $w, $h, strlen($bytes), $alt !== '' ? mb_substr($alt, 0, 250) : null, $userId]);
+        } catch (Throwable $e) {
+            self::remove($name);   // compensating cleanup: never leave an orphaned object
+            error_log('media insert failed: ' . $e->getMessage());
+            return ['error' => 'The image could not be saved.'];
+        }
+        return ['id' => $id];
     }
 
-    /** Files in uploads/ that this app did not create (anything not a random image name). Should always be empty. */
-    public static function strayFiles(): array {
-        $out = [];
-        if (!is_dir(self::dir())) return $out;
-        foreach (scandir(self::dir()) ?: [] as $f) {
-            if (in_array($f, ['.', '..', '.htaccess', 'index.html'], true)) continue;
-            if (!self::validName($f)) $out[] = $f;
-        }
-        return $out;
+    // ---------- Supabase Storage REST (service-role key, server-side only; the key is never logged) ----------
+    /** @return array{0:string,1:string} [object URL, service key]; empty strings when storage is not configured. */
+    private static function objectUrl(string $name): array {
+        $base = rtrim((string)Env::get('SUPABASE_URL', ''), '/');
+        $key = (string)Env::get('SUPABASE_SERVICE_ROLE_KEY', '');
+        if ($base === '' || $key === '') return ['', ''];
+        return [$base . '/storage/v1/object/' . rawurlencode((string)(Env::get('MEDIA_BUCKET') ?: 'media')) . '/' . rawurlencode($name), $key];
+    }
+
+    private static function put(string $name, string $bytes, string $mime): bool {
+        [$url, $key] = self::objectUrl($name);
+        if ($url === '' || $key === '') { error_log('media put failed: storage is not configured'); return false; }
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true, CURLOPT_POSTFIELDS => $bytes, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $key, 'apikey: ' . $key, 'Content-Type: ' . $mime, 'x-upsert: false'],
+        ]);
+        $ok = curl_exec($ch) !== false && (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE) < 300;
+        curl_close($ch);
+        return $ok;
+    }
+
+    private static function remove(string $name): void {
+        [$url, $key] = self::objectUrl($name);
+        if ($url === '' || $key === '') return;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST => 'DELETE', CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $key, 'apikey: ' . $key],
+        ]);
+        curl_exec($ch); curl_close($ch);
+    }
+
+    /** Storage reachability check for the admin dashboard (replaces the old "uploads folder writable" check). */
+    public static function storageHealthy(): bool {
+        [$bucketUrl, $key] = self::objectUrl('');
+        if ($bucketUrl === '' || $key === '') return false;
+        $url = substr($bucketUrl, 0, strrpos($bucketUrl, '/'));   // /storage/v1/object/media → drop the final '/name'
+        $url = str_replace('/storage/v1/object/', '/storage/v1/bucket/', $url);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $key, 'apikey: ' . $key],
+        ]);
+        $ok = curl_exec($ch) !== false && (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE) < 300;
+        curl_close($ch);
+        return $ok;
     }
 
     public static function all(int $limit = 300): array {
@@ -110,9 +154,9 @@ final class MediaService {
             Database::query('DELETE FROM media WHERE id = ?', [$id]);
             $pdo->commit();
         } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); error_log('media delete failed: ' . $e->getMessage()); return 'Could not delete that image.'; }
-        // Physical file: only if no remaining media record points at it, and only a name we generated ourselves.
+        // Object removal: only when no remaining media record points at it, and only a name we generated ourselves.
         $left = (int)Database::query('SELECT COUNT(*) FROM media WHERE filename = ?', [$m['filename']])->fetchColumn();
-        if ($left === 0 && self::validName($m['filename'])) { $p = self::dir() . '/' . $m['filename']; if (is_file($p)) @unlink($p); }
+        if ($left === 0 && self::validName($m['filename'])) self::remove($m['filename']);
         return null;
     }
 }

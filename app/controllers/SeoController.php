@@ -11,6 +11,6 @@ final class SeoController {
     }
     public function robots(): void {
         header('Content-Type: text/plain; charset=utf-8');
-        echo "User-agent: *\nDisallow: /admin\nAllow: /uploads/\n\nSitemap: " . url('/sitemap.xml') . "\n";
+        echo "User-agent: *\nDisallow: /admin\n\nSitemap: " . url('/sitemap.xml') . "\n";
     }
 }

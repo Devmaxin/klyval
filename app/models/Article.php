@@ -14,8 +14,7 @@ final class Article {
             if ($d['status'] === 'published' && !$pub) $pub = date('Y-m-d H:i:00');
             $v = [$d['slug'], $d['title'], $nul($d['excerpt']), $nul($d['content']), $d['cover_media_id'] ?: null, $d['author_id'] ?: null, $d['category'], $d['status'], $pub, $nul($d['seo_title']), $nul($d['seo_description'])];
             if (!$id) {
-                Database::query('INSERT INTO articles (slug,title,excerpt,content,cover_media_id,author_id,category,status,published_at,seo_title,seo_description) VALUES (?,?,?,?,?,?,?,?,?,?,?)', $v);
-                return (int)Database::pdo()->lastInsertId();
+                return Database::insert('INSERT INTO articles (slug,title,excerpt,content,cover_media_id,author_id,category,status,published_at,seo_title,seo_description) VALUES (?,?,?,?,?,?,?,?,?,?,?)', $v);
             }
             Slug::recordChange('article_slug_history', 'article_id', $id, $old['slug'], $d['slug'], $old['status'] !== 'draft');
             Database::query('UPDATE articles SET slug=?,title=?,excerpt=?,content=?,cover_media_id=?,author_id=?,category=?,status=?,published_at=?,seo_title=?,seo_description=? WHERE id=?', [...$v, $id]);

@@ -27,8 +27,7 @@ final class Project {
             $v = [$d['slug'], $d['name'], $nul($d['client_name']), $d['kind'], $nul($d['description']), $nul($d['case_study']), $d['cover_media_id'] ?: null,
                   $nul($d['video_url']), $nul($d['project_url']), $d['status'], $d['featured'], $d['display_order'], $nul($d['seo_title']), $nul($d['seo_description']), $d['is_placeholder'], $pub];
             if (!$id) {
-                Database::query('INSERT INTO projects (slug,name,client_name,kind,description,case_study,cover_media_id,video_url,project_url,status,featured,display_order,seo_title,seo_description,is_placeholder,published_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', $v);
-                $id = (int)Database::pdo()->lastInsertId();
+                $id = Database::insert('INSERT INTO projects (slug,name,client_name,kind,description,case_study,cover_media_id,video_url,project_url,status,featured,display_order,seo_title,seo_description,is_placeholder,published_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', $v);
             } else {
                 Slug::recordChange('project_slug_history', 'project_id', $id, $old['slug'], $d['slug'], $old['status'] !== 'draft');
                 Database::query('UPDATE projects SET slug=?,name=?,client_name=?,kind=?,description=?,case_study=?,cover_media_id=?,video_url=?,project_url=?,status=?,featured=?,display_order=?,seo_title=?,seo_description=?,is_placeholder=?,published_at=? WHERE id=?', [...$v, $id]);

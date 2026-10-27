@@ -5,7 +5,7 @@ final class HomepageAdminController extends AdminBase {
             'title' => 'Homepage', 'v' => $v, 'errors' => $errors, 'stats' => $stats, 'featured' => $featured,
             'projects' => Database::query("SELECT id, name, status, featured FROM projects WHERE status <> 'archived' ORDER BY display_order, id")->fetchAll(),
             'team' => Database::query('SELECT id, name, role, featured FROM team_members WHERE is_active = 1 ORDER BY display_order, id')->fetchAll(),
-            'services' => Database::query('SELECT id, name, pillar, show_on_home FROM services WHERE is_active = 1 ORDER BY FIELD(pillar,\'build\',\'create\',\'launch\'), display_order, id')->fetchAll(),
+            'services' => Database::query('SELECT id, name, pillar, show_on_home FROM services WHERE is_active = 1 ORDER BY array_position(ARRAY[\'build\',\'create\',\'launch\']::text[], pillar), display_order, id')->fetchAll(),
         ]);
     }
     public function show(): void {

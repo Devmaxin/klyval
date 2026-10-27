@@ -19,7 +19,7 @@ final class Slug {
     /** Called on update: remember the old public slug so it can redirect, and release it if the record is returning to it. */
     public static function recordChange(string $histTable, string $histCol, int $id, string $old, string $new, bool $wasPublic): void {
         if ($old === $new) return;
-        if ($wasPublic) Database::query("INSERT IGNORE INTO $histTable ($histCol, old_slug) VALUES (?, ?)", [$id, $old]);
+        if ($wasPublic) Database::query("INSERT INTO $histTable ($histCol, old_slug) VALUES (?, ?) ON CONFLICT DO NOTHING", [$id, $old]);
         Database::query("DELETE FROM $histTable WHERE old_slug = ? AND $histCol = ?", [$new, $id]);
     }
 }

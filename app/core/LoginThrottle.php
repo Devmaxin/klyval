@@ -6,7 +6,7 @@ final class LoginThrottle {
     public const MAX_PER_ACCOUNT = 8; // failed attempts against one email, from anywhere
 
     private static function count(string $col, string $hash): int {
-        return (int)Database::query("SELECT COUNT(*) FROM login_attempts WHERE $col = ? AND succeeded = 0 AND created_at >= (NOW() - INTERVAL " . self::WINDOW . ' SECOND)', [$hash])->fetchColumn();
+        return (int)Database::query("SELECT COUNT(*) FROM login_attempts WHERE $col = ? AND succeeded = 0 AND created_at >= now() - make_interval(secs => " . self::WINDOW . ')', [$hash])->fetchColumn();
     }
     public static function blocked(string $email): bool {
         if (self::count('ip_hash', Security::ipHash()) >= self::MAX_PER_IP) return true;
@@ -14,7 +14,7 @@ final class LoginThrottle {
     }
     public static function fail(string $email): void {
         Database::query('INSERT INTO login_attempts (ip_hash, email_hash, succeeded) VALUES (?, ?, 0)', [Security::ipHash(), $email !== '' ? Security::emailHash($email) : null]);
-        if (random_int(1, 50) === 1) Database::query('DELETE FROM login_attempts WHERE created_at < (NOW() - INTERVAL 2 DAY)');
+        if (random_int(1, 50) === 1) Database::query("DELETE FROM login_attempts WHERE created_at < now() - interval '2 days'");
     }
     /** A successful sign-in clears that account's failures (the address history stays). */
     public static function success(string $email): void {

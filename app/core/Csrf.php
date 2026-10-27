@@ -6,7 +6,7 @@ final class Csrf {
     /** Route middleware for every state-changing request. */
     public static function handle(): void {
         if (($_SERVER['CONTENT_LENGTH'] ?? 0) > 0 && !$_POST && !$_FILES) { $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-            if ($path === '/admin/media/upload') { $_SESSION['flash'] = ['err', 'That file is larger than the server allows. Use an image under 5 MB.']; redirect('/admin/media'); }
+            if ($path === '/admin/media/upload') { $_SESSION['flash'] = ['err', 'That file is larger than the server allows. Use an image under ' . media_max_mb() . ' MB.']; redirect('/admin/media'); }
             http_response_code(413);
             View::render('pages/413', ['meta' => ['title' => 'Too large', 'robots' => 'noindex']]);
             exit; }

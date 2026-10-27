@@ -12,8 +12,7 @@ final class AdminController extends AdminBase {
             'media' => $one('SELECT COUNT(*) FROM media'),
             'placeholders' => $one('SELECT (SELECT COUNT(*) FROM projects WHERE is_placeholder=1) + (SELECT COUNT(*) FROM team_members WHERE is_placeholder=1) + (SELECT COUNT(*) FROM services WHERE is_placeholder=1)'),
             'maintenance' => Settings::get('maintenance_mode') === '1',
-            'stray' => MediaService::strayFiles(),
-            'uploadsWritable' => is_dir(MediaService::dir()) ? is_writable(MediaService::dir()) : @mkdir(MediaService::dir(), 0755, true),
+            'storageOk' => MediaService::storageHealthy(),
         ]);
     }
 }

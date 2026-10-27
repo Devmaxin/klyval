@@ -22,8 +22,7 @@ final class TeamMember {
             if ($id && !$old) throw new RuntimeException('Team member not found');
             $v = [$d['slug'], $d['name'], $d['role'], $d['portrait_media_id'] ?: null, $nul($d['short_bio']), $nul($d['full_bio']), $nul($d['portfolio_url']), $d['featured'], $d['display_order'], $d['is_active'], $d['is_placeholder']];
             if (!$id) {
-                Database::query('INSERT INTO team_members (slug,name,role,portrait_media_id,short_bio,full_bio,portfolio_url,featured,display_order,is_active,is_placeholder) VALUES (?,?,?,?,?,?,?,?,?,?,?)', $v);
-                $id = (int)Database::pdo()->lastInsertId();
+                $id = Database::insert('INSERT INTO team_members (slug,name,role,portrait_media_id,short_bio,full_bio,portfolio_url,featured,display_order,is_active,is_placeholder) VALUES (?,?,?,?,?,?,?,?,?,?,?)', $v);
             } else {
                 Slug::recordChange('team_slug_history', 'member_id', $id, $old['slug'], $d['slug'], (bool)$old['is_active']);
                 Database::query('UPDATE team_members SET slug=?,name=?,role=?,portrait_media_id=?,short_bio=?,full_bio=?,portfolio_url=?,featured=?,display_order=?,is_active=?,is_placeholder=? WHERE id=?', [...$v, $id]);

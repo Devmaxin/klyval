@@ -23,7 +23,7 @@
       <?php if (!$media): ?><p class="hint">No images yet. Upload some in Media first.</p><?php endif ?>
       <div class="media-pick__grid">
       <?php foreach ($media as $m): $g = $rel['gallery'][$m['id']] ?? null; ?>
-        <div class="gallery-pick"><label><input type="checkbox" name="gallery_ids[]" value="<?= (int)$m['id'] ?>"<?= $g ? ' checked' : '' ?>><img src="/uploads/<?= e(rawurlencode($m['filename'])) ?>" alt="<?= e((string)$m['alt_text']) ?>" loading="lazy" width="96" height="96"></label>
+        <div class="gallery-pick"><label><input type="checkbox" name="gallery_ids[]" value="<?= (int)$m['id'] ?>"<?= $g ? ' checked' : '' ?>><img src="<?= e(media_file_url($m['filename'])) ?>" alt="<?= e((string)$m['alt_text']) ?>" loading="lazy" width="96" height="96"></label>
           <input type="number" min="0" name="gallery_order[<?= (int)$m['id'] ?>]" value="<?= (int)($g['display_order'] ?? 0) ?>" aria-label="Gallery order"><input name="gallery_caption[<?= (int)$m['id'] ?>]" value="<?= e((string)($g['caption'] ?? '')) ?>" maxlength="250" placeholder="Caption" aria-label="Caption"></div>
       <?php endforeach ?></div>
     </fieldset>
